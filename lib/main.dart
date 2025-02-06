@@ -75,8 +75,8 @@ class _LoginPageState extends State<LoginPage> {
 
             Image.asset(
               imageSource,
-              width: 300,
-              height: 300,
+              width: 250,
+              height: 250,
             ),
           ],
         ),
