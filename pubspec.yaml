@@ -33,6 +33,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_secure_storage: ^9.2.4
   encrypted_shared_preferences: ^3.0.1
+  url_launcher: ^6.3.0
 
 
 

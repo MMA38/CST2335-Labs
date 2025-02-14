@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:encrypted_shared_preferences/encrypted_shared_preferences.dart';
-//import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:lab2/ProfilePage.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -22,6 +24,9 @@ Widget build(BuildContext context)
       useMaterial3: true,
     ),
     home: const MyHomePage(title: 'Week 4'),
+  routes: {
+  '/profile': (context) => ProfilePage(loginName: '',)
+  }
   );
 }
 }
@@ -163,6 +168,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
             ElevatedButton(
               onPressed: () {
+                Navigator.pushNamed(context, '/profile');
+
                 String password = _controllerPassword.value.text;
                 setState(() {
                   if(password=="QWERTY123")
