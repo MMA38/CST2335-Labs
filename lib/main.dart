@@ -1,39 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:encrypted_shared_preferences/encrypted_shared_preferences.dart';
-
 import 'package:lab2/ProfilePage.dart';
-
+import 'package:lab2/data_repo.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget
-{   const MyApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-@override
-Widget build(BuildContext context)
-{
-  return MaterialApp(
-    debugShowCheckedModeBanner: false,
-    title: 'Flutter Demo',
-    theme: ThemeData(
-
-
-      colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      useMaterial3: true,
-    ),
-    home: const MyHomePage(title: 'Week 4'),
-  routes: {
-  '/profile': (context) => ProfilePage(loginName: '',)
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: const MyHomePage(title: 'Week 4'),
+      routes: {
+        '/profile': (context) => ProfilePage(loginName: ''),
+      },
+    );
   }
-  );
-}
 }
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
 
   final String title;
 
@@ -42,18 +37,17 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final EncryptedSharedPreferences encryptedSharedPreferences = EncryptedSharedPreferences();
+  final TextEditingController _controllerLogin = TextEditingController();
+  final TextEditingController _controllerPassword = TextEditingController();
+  final DataRepository _repository = DataRepository();
 
-  EncryptedSharedPreferences encryptedSharedPreferences = EncryptedSharedPreferences();
-  late TextEditingController _controllerLogin;
-  late TextEditingController _controllerPassword;
   var imageSource = "images/question.png";
+  String? savedPassword;
 
   @override
   void initState() {
     super.initState();
-    _controllerLogin = TextEditingController();
-    _controllerPassword = TextEditingController();
-    //_controller.text = "The new text"; //initialize the texfield
     loadEncryptedPrefs();
   }
 
@@ -64,164 +58,134 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
-  void saveEncryptedPrefs()  {
-    encryptedSharedPreferences.setString('LoginName', _controllerLogin.text).then((bool success1) {
-      if (success1) {
-        encryptedSharedPreferences.setString('password', _controllerPassword.text).then((bool success2) {
-          if (success2) {
-            snackBar('User Name and password saved successfully');
-          } else {
-            snackBar('Failed to save');
-          }
-        });
-      } else {
-        snackBar('Failed to save');
-      }
+  void saveEncryptedPrefs() async {
+    await _repository.saveLoginData(_controllerLogin.text, _controllerPassword.text);
+    print("Password saved: ${_controllerPassword.text}");
+    snackBar('User Name and password saved successfully');
+  }
+
+
+  void loadEncryptedPrefs() async {
+    print("Loaded saved password: $savedPassword");
+    Map<String, String> loginData = await _repository.loadLoginData();
+    setState(() {
+      _controllerLogin.text = loginData['loginName']!;
+      _controllerPassword.text = loginData['password']!;
+      savedPassword = loginData['password'];
     });
+
+    if (loginData['loginName']!.isNotEmpty && loginData['password']!.isNotEmpty) {
+      snackBar('Username and Password have been Loaded');
+    }
   }
 
-  void loadEncryptedPrefs() {
-    //retrieve username
-    encryptedSharedPreferences.getString('LoginName').then((loginName) {
-      _controllerLogin.text = loginName;
-      //if username retrieved then retrieve pswd
-      encryptedSharedPreferences.getString('password').then((password) {
-        _controllerPassword.text = password;
-        //if username and password retrieved print a succes message
-        if (loginName!='' && password != '' )
-          snackBar('Username and Password have been Loaded');
-      });
-    });
+  void clearEncryptedPrefs() async {
+    await _repository.clearLoginData();
+    snackBar('All saved Usernames and Passwords have been removed');
   }
 
-  void ClearEncryptedPrefs() {
-    encryptedSharedPreferences.clear().then((bool success) {
-      if (success) {
-        snackBar('All saved Usernames and Password have been removed');
-      } else {
-        snackBar('Usernames and Password have not been removed');
-      }
-    });
-  }
-
-  void ResetFields(){
-    _controllerLogin.text ='';
-    _controllerPassword.text = '';
-  }
-
-  void snackBar(String message){
-    var snackBar = SnackBar(
-      content: Text(message),
-      action: SnackBarAction(
-        label: 'Undo',  // Button label
-        onPressed: () {
-          ResetFields();
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        },
+  void snackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: 5),
+        backgroundColor: Colors.green,
       ),
-      duration: Duration(seconds: 5),
-      backgroundColor: Colors.green,
     );
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
-
   }
+
+  void promptToSavePassword() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Would you like to save your password for future logins?"),
+        action: SnackBarAction(
+          label: "Yes",
+          onPressed: () {
+            saveEncryptedPrefs();
+          },
+        ),
+        duration: Duration(seconds: 15),
+      ),
+    );
+  }
+
+  void login() async {
+    String enteredPassword = _controllerPassword.text;
+    Map<String, String> loginData = await _repository.loadLoginData();
+    String? savedPassword = loginData['password'];
+
+    print("Entered password: $enteredPassword");
+    print("Saved password: $savedPassword");
+
+    if (savedPassword == null || savedPassword.isEmpty) {
+      // First-time login: Prompt user to save password
+      promptToSavePassword();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfilePage(loginName: _controllerLogin.text),
+        ),
+      );
+    } else if (enteredPassword == savedPassword) {
+      // Successful login with stored password
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfilePage(loginName: _controllerLogin.text),
+        ),
+      );
+    } else {
+      snackBar("Incorrect password. Try again!");
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
-
-    return Scaffold( //modifi
+    return Scaffold(
       appBar: AppBar(
-
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-
         title: Text(widget.title,
           style: TextStyle(
-            fontSize: 24, // Change size
-            fontWeight: FontWeight.bold, // Make bold
-            color: Colors.black87, // Change color
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
       ),
       body: Center(
-
         child: Column(
-
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-
-            TextField(controller: _controllerLogin,
-                decoration: InputDecoration(
-                    hintText:"",
-                    border: OutlineInputBorder(),
-                    labelText: "Log in"
-                )
+            TextField(
+              controller: _controllerLogin,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: "Log in",
+              ),
             ),
-
-            TextField(controller: _controllerPassword,
-                obscureText:true,
-                decoration: InputDecoration(
-                  hintText:"",
-                  border: OutlineInputBorder(),
-                  labelText: "Password",
-
-                )
+            SizedBox(height: 10),
+            TextField(
+              controller: _controllerPassword,
+              obscureText: true,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: "Password",
+              ),
             ),
-
+            SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/profile');
-
-                String password = _controllerPassword.value.text;
-                setState(() {
-                  if(password=="QWERTY123")
-                    imageSource = "images/idea.png";
-                  else
-                    imageSource = "images/stop.png";
-
-                });
-
-                showDialog<String>(
-                  context: context,
-                  builder: (BuildContext context) => AlertDialog(
-                    title: const Text('Save information ! '),
-                    content: const Text('Would like to save username and password?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          saveEncryptedPrefs();
-                          Navigator.pop(context);
-                        },
-                        child: Text('Yes', style: TextStyle(fontSize: 30, color: Colors.blueAccent)),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          ClearEncryptedPrefs();
-                          Navigator.pop(context);
-                        },
-                        child: Text('No', style: TextStyle(fontSize: 30, color: Colors.blueAccent)),
-                      ),
-                    ],//action
-                  ),
-                );
-              },
-              child: Text('Login',
-                  style: TextStyle(fontSize: 30, color: Colors.blueAccent)),
+              onPressed: login,
+              child: Text(
+                'Login',
+                style: TextStyle(fontSize: 20, color: Colors.blueAccent),
+              ),
             ),
-/*
-            Padding(
-              padding: const EdgeInsets.all(15.0),
-              child: ElevatedButton(
-                onPressed: () => ResetFields(),
-                child: Text ('Reset Fields',
-                  //style: TextStyle(fontSize: 30, color: Colors.blueAccent),
-                ),
-              ), //
-            ),*/
+            SizedBox(height: 20),
             Image.asset(imageSource, width: 300, height: 300),
-
           ],
         ),
       ),
-
     );
   }
 }

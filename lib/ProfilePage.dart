@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:encrypted_shared_preferences/encrypted_shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:lab2/data_repo.dart';
 
 class ProfilePage extends StatefulWidget {
   final String loginName;
@@ -12,7 +13,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final EncryptedSharedPreferences encryptedSharedPreferences = EncryptedSharedPreferences();
+  final DataRepository _repository = DataRepository();
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
@@ -21,7 +22,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    loadData();
+    loadData(); // Load stored user data on page load
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Welcome Back, ${widget.loginName}")),
@@ -30,43 +31,29 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void loadData() async {
-    firstNameController.text = await encryptedSharedPreferences.getString('firstName') ?? '';
-    lastNameController.text = await encryptedSharedPreferences.getString('lastName') ?? '';
-    phoneController.text = await encryptedSharedPreferences.getString('phone') ?? '';
-    emailController.text = await encryptedSharedPreferences.getString('email') ?? '';
+    Map<String, String> data = await _repository.loadData();
+    setState(() {
+      firstNameController.text = data['firstName']!;
+      lastNameController.text = data['lastName']!;
+      phoneController.text = data['phone']!;
+      emailController.text = data['email']!;
+    });
   }
 
   void saveData() {
-    encryptedSharedPreferences.setString('firstName', firstNameController.text);
-    encryptedSharedPreferences.setString('lastName', lastNameController.text);
-    encryptedSharedPreferences.setString('phone', phoneController.text);
-    encryptedSharedPreferences.setString('email', emailController.text);
+    _repository.saveData(
+      firstNameController.text,
+      lastNameController.text,
+      phoneController.text,
+      emailController.text,
+    );
   }
 
-  void launchDialer() async {
-    final Uri url = Uri(scheme: 'tel', path: phoneController.text);
+  void launchUrlAction(Uri url, String errorMessage) async {
     if (await canLaunchUrl(url)) {
       await launchUrl(url);
     } else {
-      showErrorDialog("Phone call is not supported on this device");
-    }
-  }
-
-  void launchSMS() async {
-    final Uri url = Uri(scheme: 'sms', path: phoneController.text);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    } else {
-      showErrorDialog("SMS is not supported on this device");
-    }
-  }
-
-  void launchEmail() async {
-    final Uri url = Uri(scheme: 'mailto', path: emailController.text);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    } else {
-      showErrorDialog("Email is not supported on this device");
+      showErrorDialog(errorMessage);
     }
   }
 
@@ -100,6 +87,8 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            Text("Welcome Back, ${widget.loginName}",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             TextField(controller: firstNameController, decoration: InputDecoration(labelText: "First Name")),
             TextField(controller: lastNameController, decoration: InputDecoration(labelText: "Last Name")),
             Row(
@@ -110,8 +99,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     decoration: InputDecoration(labelText: "Phone Number"),
                   ),
                 ),
-                IconButton(icon: Icon(Icons.phone), onPressed: launchDialer),
-                IconButton(icon: Icon(Icons.message), onPressed: launchSMS),
+                IconButton(icon: Icon(Icons.phone), onPressed: () => launchUrlAction(Uri(scheme: 'tel', path: phoneController.text), "Phone call is not supported on this device")),
+                IconButton(icon: Icon(Icons.message), onPressed: () => launchUrlAction(Uri(scheme: 'sms', path: phoneController.text), "SMS is not supported on this device")),
               ],
             ),
             Row(
@@ -122,7 +111,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     decoration: InputDecoration(labelText: "Email Address"),
                   ),
                 ),
-                IconButton(icon: Icon(Icons.email), onPressed: launchEmail),
+                IconButton(icon: Icon(Icons.email), onPressed: () => launchUrlAction(Uri(scheme: 'mailto', path: emailController.text), "Email is not supported on this device")),
               ],
             ),
           ],
