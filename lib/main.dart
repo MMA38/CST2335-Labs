@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:lab2/database.dart';
+import 'package:lab2/todo_Dao.dart';
+import 'package:lab2/todo_item.dart';
 
 void main() {
   runApp(const MyApp());
@@ -33,9 +36,29 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
-  var words = <String>[];
+  var words = <TodoItem>[];
+
+  late ToDoDAO myDAO;
+
   final TextEditingController _itemController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
+
+  @override
+  void initState(){
+    super.initState();
+
+    $FloorAppDatabase.databaseBuilder('app_database.db').build().then((database){
+// get the database DAO object
+      myDAO = database.todoDao;
+      myDAO.getAllItems().then((listOfItems) {
+// add the items from the database
+        setState(() {
+          words.clear();
+          words.addAll(listOfItems);
+        });
+      });
+    });
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -67,7 +90,10 @@ class _MyHomePageState extends State<MyHomePage> {
               ElevatedButton(onPressed: (){
                 if(_itemController.value.text.isNotEmpty && _quantityController.text.isNotEmpty) {
                   setState(() {
-                    words.add("${_itemController.text} quantity: ${_quantityController.text}");
+                    var newItem = TodoItem(TodoItem.ID++, _itemController.text, _quantityController.text );
+                    myDAO.insertItem(newItem);
+                    words.add(newItem);
+
                     _itemController.text = "";  // empty the field after adding item
                     _quantityController.text = "";
                   });
@@ -91,6 +117,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               actions: [
                                 ElevatedButton(onPressed: (){
                                   setState(() {
+                                    myDAO.deleteItem(words[rowNum]);
                                     words.removeAt(rowNum);
                                     Navigator.pop(context);
                                   });
@@ -108,7 +135,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           mainAxisAlignment:MainAxisAlignment.center,
                           children: [
                             Text("${rowNum + 1}:"),
-                            Text(words[rowNum])
+                            Text(words[rowNum].itemName),
+                            Text(words[rowNum].quantity)
                           ],),
                       );
                     }
