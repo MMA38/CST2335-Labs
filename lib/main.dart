@@ -222,5 +222,5 @@ class DetailsPage extends StatelessWidget {
         ),
       ),
     );
-  }
+  }//
 }
