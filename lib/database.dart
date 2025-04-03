@@ -3,8 +3,6 @@
 // required package imports
 import 'dart:async';
 import 'package:lab2/todo_Dao.dart';
-
-import 'todo_Dao.dart';
 import 'package:floor/floor.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
